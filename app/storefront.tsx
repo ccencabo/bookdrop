@@ -233,7 +233,7 @@ export default function Storefront({ initialBooks,nextPublishAt,view='latest' }:
   return <main>
     <header className="site-header">
       <a className="brand" href={isLatestView?'#top':'/'} aria-label="The Second Chapter home"><BrandMark /><span>The Second Chapter</span></a>
-      <nav>{isLatestView&&<a href="#how">How it works</a>}<a href={isLatestView?'#collection':'/'}>Latest drop</a><a href={isLatestView?'/all-books':'#collection'}>All books</a></nav>
+      <nav><Link href="/#how">How it works</Link><Link href="/#collection">Latest drop</Link><Link href="/all-books">All books</Link><Link href="/updates">Updates</Link></nav>
       <button className="bag-button" onClick={openClaimPanel}>Claim list <span>{selected.length}</span></button>
     </header>
 

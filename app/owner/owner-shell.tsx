@@ -10,7 +10,7 @@ export default function OwnerShell({
   children,
 }: {
   email: string;
-  active: 'claims' | 'inventory';
+  active: 'claims' | 'inventory' | 'updates';
   eyebrow: string;
   title: string;
   children: ReactNode;
@@ -21,6 +21,7 @@ export default function OwnerShell({
       <nav>
         <Link href="/owner/claims" className={active === 'claims' ? 'active' : undefined}>Claims</Link>
         <Link href="/owner/inventory" className={active === 'inventory' ? 'active' : undefined}>Inventory</Link>
+        <Link href="/owner/updates" className={active === 'updates' ? 'active' : undefined}>Updates</Link>
       </nav>
       <div><small>{email}</small><form action="/auth/logout" method="post"><button className="link-button">Sign out</button></form></div>
     </aside>

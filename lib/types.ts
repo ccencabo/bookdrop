@@ -25,6 +25,8 @@ export type Order = {
   notes: string;
   total: number;
   status: string;
+  tracking_number: string | null;
+  status_updated_at: string;
   created_at: string;
   items: {
     book_id: number | null;
@@ -41,4 +43,21 @@ export type ClaimResult = {
     title: string;
     position: number;
   }[];
+};
+
+export type SellerUpdate = {
+  id: number;
+  title: string;
+  body: string;
+  image_url: string | null;
+  created_at: string;
+};
+
+export type PublicOrderStatus = {
+  code: string;
+  status: string;
+  tracking_number: string | null;
+  status_updated_at: string;
+  created_at: string;
+  items: string[];
 };

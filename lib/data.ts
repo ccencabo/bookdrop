@@ -1,6 +1,6 @@
 import 'server-only';
 import { createAdminClient } from './supabase/admin';
-import type { Book, ClaimResult, Order } from './types';
+import type { Book, ClaimResult, Order, SellerUpdate } from './types';
 
 export async function listBooks(includeUnavailable = true, includeScheduled = false): Promise<Book[]> {
   const supabase = createAdminClient();
@@ -62,6 +62,15 @@ export async function listOrders(): Promise<Order[]> {
   });
 }
 
+export async function listSellerUpdates(): Promise<SellerUpdate[]> {
+  const {data,error}=await createAdminClient()
+    .from('seller_updates')
+    .select('id,title,body,image_url,created_at')
+    .order('created_at',{ascending:false});
+  if(error)throw error;
+  return (data??[]) as SellerUpdate[];
+}
+
 export async function addBook(input: Omit<Book,'id'|'status'>) {
   const { error } = await createAdminClient().from('books').insert(input);
   if (error) throw error;
@@ -82,7 +91,9 @@ export async function setBookStatuses(ids:number[],status:Book['status']) {
   if (error) throw error;
 }
 
-export async function setOrderStatus(id:string,status:string) {
-  const { error } = await createAdminClient().from('orders').update({status}).eq('id',id);
+export async function setOrderStatus(id:string,status:string,trackingNumber?:string) {
+  const update:Record<string,string>={status,status_updated_at:new Date().toISOString()};
+  if(trackingNumber!==undefined)update.tracking_number=trackingNumber;
+  const { error } = await createAdminClient().from('orders').update(update).eq('id',id);
   if (error) throw error;
 }
