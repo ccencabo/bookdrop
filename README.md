@@ -5,6 +5,7 @@ A mobile-friendly secondhand-book storefront with atomic miner queues and a priv
 ## What is included
 
 - Public catalog that accepts miners until the seller marks a book sold
+- Scheduled new-arrival drops that publish together and are grouped by posting date
 - Multi-book claim checkout and unique claim codes
 - Atomic per-book queue positions for concurrent claims
 - Seller login, inventory management, and order-status workflow

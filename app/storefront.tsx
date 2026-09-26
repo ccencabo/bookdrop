@@ -1,7 +1,10 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { Book, ClaimResult } from '../lib/types';
+import { bookDropDateKey } from '../lib/book-drops';
 import BrandMark from './brand-mark';
 
 const peso = new Intl.NumberFormat('en-PH', { style:'currency', currency:'PHP', maximumFractionDigits:0 });
@@ -12,6 +15,9 @@ const ordinal = (position:number) => {
 };
 
 const bookImages = (book:Book) => book.image_urls.length ? book.image_urls : book.image_url ? [book.image_url] : [];
+const editionLabel = (book:Book) => book.condition.toLowerCase() === 'brand new' ? 'Brand-new edition' : 'Pre-loved edition';
+const sellingPrice = (book:Book) => book.is_on_sale ? book.price-book.discount_amount : book.price;
+const arrivalDateLabel = new Intl.DateTimeFormat('en-US', { timeZone:'Asia/Manila', month:'long', day:'numeric' });
 
 const escapeReceiptText = (value:string) => value
   .replaceAll('&', '&amp;')
@@ -91,8 +97,10 @@ async function createReceiptPng(result: ClaimResult) {
   }
 }
 
-export default function Storefront({ initialBooks }: { initialBooks: Book[] }) {
+export default function Storefront({ initialBooks,nextPublishAt,view='latest' }: { initialBooks:Book[];nextPublishAt:string|null;view?:'latest'|'all' }) {
+  const router=useRouter();
   const books = initialBooks;
+  const isLatestView=view==='latest';
   const [selected, setSelected] = useState<number[]>([]);
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState(false);
@@ -102,8 +110,34 @@ export default function Storefront({ initialBooks }: { initialBooks: Book[] }) {
   const [receiptError, setReceiptError] = useState('');
   const [detailBook, setDetailBook] = useState<Book|null>(null);
   const [detailImageIndex, setDetailImageIndex] = useState(0);
+  const [searchQuery,setSearchQuery] = useState('');
   const chosen = useMemo(() => books.filter((book) => selected.includes(book.id)), [books, selected]);
-  const total = chosen.reduce((sum, book) => sum + book.price, 0);
+  const saleBooks = useMemo(() => isLatestView?[]:books.filter((book) => book.is_on_sale&&book.status==='available'), [books,isLatestView]);
+  const catalogBooks = useMemo(() => {
+    if(!isLatestView)return books.filter((book) => !book.is_on_sale||book.status!=='available');
+    const query=searchQuery.trim().toLocaleLowerCase();
+    if(!query)return books;
+    return books.filter((book) => `${book.title} ${book.author}`.toLocaleLowerCase().includes(query));
+  }, [books,isLatestView,searchQuery]);
+  const arrivalGroups = useMemo(() => {
+    const groups = new Map<string,{label:string;books:Book[]}>();
+    catalogBooks.forEach((book) => {
+      const date=new Date(book.publish_at);
+      const key=bookDropDateKey(book);
+      const group=groups.get(key) ?? {label:arrivalDateLabel.format(date),books:[]};
+      group.books.push(book);
+      groups.set(key,group);
+    });
+    return Array.from(groups.entries()).map(([key,group]) => ({key,...group}));
+  }, [catalogBooks]);
+
+  useEffect(() => {
+    if(!nextPublishAt)return;
+    const remaining=new Date(nextPublishAt).getTime()-Date.now();
+    const timeout=window.setTimeout(() => router.refresh(),Math.max(0,Math.min(remaining+250,2_147_483_647)));
+    return () => window.clearTimeout(timeout);
+  }, [nextPublishAt,router]);
+  const total = chosen.reduce((sum, book) => sum + sellingPrice(book), 0);
   const available = books.filter((book) => book.status === 'available').length;
 
   useEffect(() => {
@@ -190,14 +224,20 @@ export default function Storefront({ initialBooks }: { initialBooks: Book[] }) {
     finally { setSending(false); }
   }
 
+  function renderBookCard(book:Book) {
+    const image=bookImages(book)[0];
+    const price=<span className={`book-preview-price ${book.is_on_sale?'on-sale':''}`}>{book.is_on_sale&&<s>{peso.format(book.price)}</s>}<b>{peso.format(sellingPrice(book))}</b></span>;
+    return <article className={`book-card ${book.status !== 'available' ? 'unavailable' : ''}`} key={book.id}><button type="button" className={`book-cover book-cover-trigger ${book.tone} ${image?'has-cover-image':''}`} style={image?{backgroundImage:`url("${image.replaceAll('"','%22')}")`}:undefined} aria-label={`View ${book.title} details`} onClick={()=>openBook(book)}>{image?<span className="cover-preview-title"><span>{book.title}</span>{price}</span>:<><span className="cover-kicker">{editionLabel(book)}</span><strong>{book.title}</strong><span className="plain-cover-meta"><small>{book.author}</small>{price}</span></>}{book.is_on_sale&&book.status==='available'&&<span className="sale-stamp">Sale · {peso.format(book.discount_amount)} off</span>}{book.status!=='available'&&<span className="status-stamp">{book.status}</span>}<span className="view-book-hint">View book</span></button></article>;
+  }
+
   return <main>
     <header className="site-header">
-      <a className="brand" href="#top" aria-label="The Second Chapter home"><BrandMark /><span>The Second Chapter</span></a>
-      <nav><a href="#how">How it works</a><a href="#collection">Latest drop</a></nav>
+      <a className="brand" href={isLatestView?'#top':'/'} aria-label="The Second Chapter home"><BrandMark /><span>The Second Chapter</span></a>
+      <nav>{isLatestView&&<a href="#how">How it works</a>}<a href={isLatestView?'#collection':'/'}>Latest drop</a><a href={isLatestView?'/all-books':'#collection'}>All books</a></nav>
       <button className="bag-button" onClick={openClaimPanel}>Claim list <span>{selected.length}</span></button>
     </header>
 
-    <section className="hero" id="top">
+    {isLatestView?<section className="hero" id="top">
       <div className="hero-copy-block">
         <p className="eyebrow hero-eyebrow"><span aria-hidden="true" /> Curated new &amp; pre-loved books</p>
         <h1>A new favorite is<br /><em>waiting to be read.</em></h1>
@@ -220,16 +260,20 @@ export default function Storefront({ initialBooks }: { initialBooks: Book[] }) {
         <div className="hero-book hero-book-three" />
         <span className="hero-art-label hero-art-label-bottom">Rehome · Repeat</span>
       </div>
-    </section>
+    </section>:<section className="past-drops-hero" id="top"><p className="eyebrow">The full collection</p><h1>All books.</h1><p>Browse every arrival in one place, including the latest drop and books currently on sale.</p><Link className="secondary-button" href="/">Back to the latest drop <span aria-hidden="true">→</span></Link></section>}
 
-    {detailBook&&(() => {const images=bookImages(detailBook);const image=images[Math.min(detailImageIndex,Math.max(images.length-1,0))];return <div className="book-detail-backdrop" onMouseDown={(event)=>event.target===event.currentTarget&&closeBook()}><section className="book-detail-modal" role="dialog" aria-modal="true" aria-labelledby="book-detail-title"><button type="button" className="book-detail-close" aria-label="Close book details" onClick={closeBook}>×</button><div className="book-detail-gallery"><div className={`book-detail-image ${detailBook.tone} ${image?'has-image':''}`} style={image?{backgroundImage:`url("${image.replaceAll('"','%22')}")`}:undefined}>{!image&&<><span>Pre-loved edition</span><strong>{detailBook.title}</strong><small>{detailBook.author}</small></>}{images.length>1&&<><button type="button" className="detail-arrow previous" aria-label="Previous book photo" onClick={()=>changeDetailImage(images.length,-1)}>‹</button><button type="button" className="detail-arrow next" aria-label="Next book photo" onClick={()=>changeDetailImage(images.length,1)}>›</button><span className="detail-image-count">{detailImageIndex+1} / {images.length}</span></>}</div>{images.length>1&&<div className="book-detail-thumbnails" aria-label="Choose a book photo">{images.map((photo,index)=><button type="button" key={photo} className={index===detailImageIndex?'active':undefined} aria-label={`View photo ${index+1}`} aria-pressed={index===detailImageIndex} style={{backgroundImage:`url("${photo.replaceAll('"','%22')}")`}} onClick={()=>setDetailImageIndex(index)}/>)}</div>}</div><div className="book-detail-copy"><p className="eyebrow">Pre-loved edition</p><h2 id="book-detail-title">{detailBook.title}</h2><p className="book-detail-author">by {detailBook.author}</p><div className="book-detail-facts"><div><span>Price</span><strong>{peso.format(detailBook.price)}</strong></div><div><span>Condition</span><strong>{detailBook.condition}</strong></div><div><span>Status</span><strong>{detailBook.status==='available'?'Open for miners':'Sold'}</strong></div></div><div className="book-detail-description"><span>Description &amp; condition notes</span><p>{detailBook.description||'No additional condition notes were provided.'}</p></div><button type="button" className={`detail-claim-button ${selected.includes(detailBook.id)?'selected':''}`} disabled={detailBook.status!=='available'} onClick={()=>toggle(detailBook.id)}>{detailBook.status==='sold'?'Sold':selected.includes(detailBook.id)?'✓ Added to claim':'Add to claim'}</button>{selected.length>0&&<button type="button" className="detail-review-button" onClick={reviewClaimFromDetails}>Review claim list · {selected.length} {selected.length===1?'book':'books'}</button>}</div></section></div>})()}
+    {detailBook&&(() => {const images=bookImages(detailBook);const image=images[Math.min(detailImageIndex,Math.max(images.length-1,0))];return <div className="book-detail-backdrop" onMouseDown={(event)=>event.target===event.currentTarget&&closeBook()}><section className="book-detail-modal" role="dialog" aria-modal="true" aria-labelledby="book-detail-title"><button type="button" className="book-detail-close" aria-label="Close book details" onClick={closeBook}>×</button><div className="book-detail-gallery"><div className={`book-detail-image ${detailBook.tone} ${image?'has-image':''}`} style={image?{backgroundImage:`url("${image.replaceAll('"','%22')}")`}:undefined}>{!image&&<><span>{editionLabel(detailBook)}</span><strong>{detailBook.title}</strong><small>{detailBook.author}</small></>}{images.length>1&&<><button type="button" className="detail-arrow previous" aria-label="Previous book photo" onClick={()=>changeDetailImage(images.length,-1)}>‹</button><button type="button" className="detail-arrow next" aria-label="Next book photo" onClick={()=>changeDetailImage(images.length,1)}>›</button><span className="detail-image-count">{detailImageIndex+1} / {images.length}</span></>}</div>{images.length>1&&<div className="book-detail-thumbnails" aria-label="Choose a book photo">{images.map((photo,index)=><button type="button" key={photo} className={index===detailImageIndex?'active':undefined} aria-label={`View photo ${index+1}`} aria-pressed={index===detailImageIndex} style={{backgroundImage:`url("${photo.replaceAll('"','%22')}")`}} onClick={()=>setDetailImageIndex(index)}/>)}</div>}</div><div className="book-detail-copy"><p className="eyebrow">{editionLabel(detailBook)}</p><h2 id="book-detail-title">{detailBook.title}</h2><p className="book-detail-author">by {detailBook.author}</p><div className="book-detail-facts"><div><span>Price</span><strong className={detailBook.is_on_sale?'detail-sale-price':undefined}>{detailBook.is_on_sale&&<s>{peso.format(detailBook.price)}</s>}{peso.format(sellingPrice(detailBook))}</strong></div><div><span>Condition</span><strong>{detailBook.condition}</strong></div><div><span>Status</span><strong>{detailBook.status==='available'?'Open for miners':'Sold'}</strong></div></div>{detailBook.is_on_sale&&<p className="detail-sale-note">On sale · Save {peso.format(detailBook.discount_amount)}</p>}<div className="book-detail-description"><span>Description &amp; condition notes</span><p>{detailBook.description||'No additional condition notes were provided.'}</p></div><button type="button" className={`detail-claim-button ${selected.includes(detailBook.id)?'selected':''}`} disabled={detailBook.status!=='available'} onClick={()=>toggle(detailBook.id)}>{detailBook.status==='sold'?'Sold':selected.includes(detailBook.id)?'✓ Added to claim':'Add to claim'}</button>{selected.length>0&&<button type="button" className="detail-review-button" onClick={reviewClaimFromDetails}>Review claim list · {selected.length} {selected.length===1?'book':'books'}</button>}</div></section></div>})()}
 
-    <section className="how" id="how"><p className="eyebrow">Know your place in line</p><h2>Claim in three easy steps.</h2><div className="steps"><div><span>01</span><h3>Pick your reads</h3><p>Add every book you want to one claim list.</p></div><div><span>02</span><h3>Join the miner list</h3><p>Submit your details to receive a position for each book.</p></div><div><span>03</span><h3>Message &amp; pay</h3><p>Send your claim receipt to The Second Chapter on Facebook and complete your payment within the agreed transaction period.</p></div></div><p className="payment-note"><strong>Payment-first policy</strong><span>Your claim is secured only after payment. If payment is not completed within the agreed transaction period, the seller will proceed to the next miner.</span></p></section>
+    {isLatestView&&<section className="how" id="how"><p className="eyebrow">Know your place in line</p><h2>Claim in three easy steps.</h2><div className="steps"><div><span>01</span><h3>Pick your reads</h3><p>Add every book you want to one claim list.</p></div><div><span>02</span><h3>Join the miner list</h3><p>Submit your details to receive a position for each book.</p></div><div><span>03</span><h3>Message &amp; pay</h3><p>Send your claim receipt to The Second Chapter on Facebook and complete your payment within the agreed transaction period.</p></div></div><p className="payment-note"><strong>Payment-first policy</strong><span>Your claim is secured only after payment. If payment is not completed within the agreed transaction period, the seller will proceed to the next miner.</span></p></section>}
 
     <section className="collection" id="collection">
-      <div className="section-heading"><div><p className="eyebrow">The latest drop</p><h2>Books looking for a new home</h2></div><p>{available} {available === 1 ? 'book' : 'books'} available</p></div>
-      <div className="book-grid">
-        {books.map((book) => {const image=bookImages(book)[0];return <article className={`book-card ${book.status !== 'available' ? 'unavailable' : ''}`} key={book.id}><button type="button" className={`book-cover book-cover-trigger ${book.tone} ${image?'has-cover-image':''}`} style={image?{backgroundImage:`url("${image.replaceAll('"','%22')}")`}:undefined} aria-label={`View ${book.title} details`} onClick={()=>openBook(book)}>{image?<span className="cover-preview-title">{book.title}</span>:<><span className="cover-kicker">Pre-loved edition</span><strong>{book.title}</strong><small>{book.author}</small></>}{book.status!=='available'&&<span className="status-stamp">{book.status}</span>}<span className="view-book-hint">View book</span></button></article>})}
+      <div className="section-heading"><div><p className="eyebrow">{isLatestView?'The latest drop':'The complete catalog'}</p><h2>{isLatestView?'Books looking for a new home':'Browse all books'}</h2></div><div className="section-heading-side"><p>{available} {available === 1 ? 'book' : 'books'} available</p><a href={isLatestView?'/all-books':'/'}>{isLatestView?'Browse all books':'View latest drop'} <span aria-hidden="true">→</span></a></div></div>
+      {isLatestView&&<div className="collection-search"><span aria-hidden="true">⌕</span><input type="search" value={searchQuery} onChange={(event)=>setSearchQuery(event.target.value)} placeholder="Search by title or author" aria-label="Search the latest book arrival"/>{searchQuery&&<button type="button" onClick={()=>setSearchQuery('')}>Clear</button>}</div>}
+      <div className="arrival-groups">
+        {!isLatestView&&<section className="arrival-group sale-books-section"><div className="arrival-heading"><div><p className="eyebrow">Special prices</p><h3>On sale</h3></div><span>{saleBooks.length} {saleBooks.length===1?'book':'books'}</span></div>{saleBooks.length?<div className="book-grid">{saleBooks.map(renderBookCard)}</div>:<div className="empty-state">There are no books on sale right now.</div>}</section>}
+        {arrivalGroups.map((group) => <section className="arrival-group" key={group.key}><div className="arrival-heading"><h3>{group.label} New Arrival</h3><span>{group.books.length} {group.books.length === 1 ? 'book' : 'books'}</span></div><div className="book-grid">{group.books.map(renderBookCard)}</div></section>)}
+        {isLatestView&&books.length>0&&!arrivalGroups.length&&<div className="empty-state">No books match “{searchQuery.trim()}”.</div>}
+        {!books.length&&<div className="empty-state">There are no books to display yet.</div>}
       </div>
     </section>
 
@@ -242,7 +286,7 @@ export default function Storefront({ initialBooks }: { initialBooks: Book[] }) {
         <button className="close-button" aria-label="Close claim list" onClick={closeClaimPanel}>×</button>
         {confirmation ? <div className="confirmation"><BrandMark /><p className="eyebrow">Claim received</p><h2 id="claim-title">You&apos;re on the miner list!</h2><p>Download your receipt, send it to The Second Chapter Facebook page, and complete payment within the agreed transaction period. Unpaid claims will be offered to the next miner.</p><div className="miner-positions">{confirmation.items.map((item) => <div key={item.book_id}><span>{item.title}</span><strong>{ordinal(item.position)} miner</strong></div>)}</div><strong>{confirmation.code}</strong><div className="confirmation-total"><span>Book subtotal · {peso.format(confirmation.total)}</span><small>Shipping fee not included</small></div><div className="shipping-rates"><span>Shipping rates</span><div><small>1 book</small><strong>₱84</strong></div><div><small>2–3 books</small><strong>₱134</strong></div><div><small>4–6 books</small><strong>₱164</strong></div></div>{receiptError && <p className="receipt-error" role="alert">{receiptError}</p>}<div className="confirmation-actions"><button type="button" className="receipt-button" disabled={downloadingReceipt} onClick={downloadReceipt}>{downloadingReceipt ? 'Preparing receipt…' : '↓ Download receipt'}</button><button type="button" className="continue-button" onClick={closeClaimPanel}>Continue browsing</button></div></div> : <>
           <p className="eyebrow">Your claim list</p><h2 id="claim-title">Almost yours.</h2><p className="claim-payment-note"><strong>Payment-first policy</strong><span>Your claim is secured only after payment. If payment is not completed within the agreed transaction period, the seller will proceed to the next miner.</span></p>
-          {chosen.length ? <><div className="claim-items">{chosen.map((book) => <div key={book.id}><span><b>{book.title}</b><small>{book.author}</small></span><strong>{peso.format(book.price)}</strong><button aria-label={`Remove ${book.title}`} onClick={() => toggle(book.id)}>×</button></div>)}</div><div className="claim-total"><span>Book subtotal <small>Shipping fee not included</small></span><strong>{peso.format(total)}</strong></div><div className="shipping-rates"><span>Shipping rates</span><div><small>1 book</small><strong>₱84</strong></div><div><small>2–3 books</small><strong>₱134</strong></div><div><small>4–6 books</small><strong>₱164</strong></div></div>
+          {chosen.length ? <><div className="claim-items">{chosen.map((book) => <div key={book.id}><span><b>{book.title}</b><small>{book.author}{book.is_on_sale?' · Sale':''}</small></span><strong>{peso.format(sellingPrice(book))}</strong><button aria-label={`Remove ${book.title}`} onClick={() => toggle(book.id)}>×</button></div>)}</div><div className="claim-total"><span>Book subtotal <small>Shipping fee not included</small></span><strong>{peso.format(total)}</strong></div><div className="shipping-rates"><span>Shipping rates</span><div><small>1 book</small><strong>₱84</strong></div><div><small>2–3 books</small><strong>₱134</strong></div><div><small>4–6 books</small><strong>₱164</strong></div></div>
           <form onSubmit={submit}><div className="form-grid"><label>Full name<input name="name" required maxLength={80} autoComplete="name" /></label><label>Mobile number<input name="phone" required maxLength={30} inputMode="tel" autoComplete="tel" /></label></div><label>Facebook profile or Messenger name<input name="facebook" required maxLength={200} placeholder="Link or exact profile name" /></label><label>Delivery method<select name="delivery" required><option value="">Choose one</option><option>Pickup</option><option>Maxim / Angkas</option><option>J&amp;T</option></select></label><label>Delivery address <small>(if applicable)</small><textarea name="address" rows={2} maxLength={300} /></label><label>Notes <small>(optional)</small><textarea name="notes" rows={2} maxLength={300} placeholder="Preferred pickup point, rider details, etc." /></label><label className="claim-disclaimer"><input name="termsAccepted" type="checkbox" required /><span>I understand that claims cannot be cancelled, I accept each book&apos;s stated condition, and no refunds or returns are allowed once an order has shipped.</span></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="submit-claim" disabled={sending}>{sending ? 'Joining the miner list…' : `Submit claim · ${peso.format(total)}`}</button><p className="fine-print">Book subtotal excludes shipping. Submitting adds you to each book&apos;s miner queue; claims stay open until the seller marks a book sold.</p></form></> : <div className="empty-claim"><p>Your claim list is empty.</p><button onClick={closeClaimPanel}>Browse books</button></div>}
         </>}
       </section>

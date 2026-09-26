@@ -3,12 +3,15 @@ export type Book = {
   title: string;
   author: string;
   price: number;
+  is_on_sale: boolean;
+  discount_amount: number;
   condition: string;
   status: 'available' | 'sold';
   tone: string;
   description: string;
   image_url: string | null;
   image_urls: string[];
+  publish_at: string;
 };
 
 export type Order = {
@@ -24,7 +27,7 @@ export type Order = {
   status: string;
   created_at: string;
   items: {
-    book_id: number;
+    book_id: number | null;
     title: string;
     miner_position: number;
   }[];
