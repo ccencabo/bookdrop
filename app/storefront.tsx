@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import type { Book, ClaimResult } from '../lib/types';
 import BrandMark from './brand-mark';
 
@@ -10,6 +10,8 @@ const ordinal = (position:number) => {
   if (mod100 >= 11 && mod100 <= 13) return `${position}th`;
   return `${position}${position % 10 === 1 ? 'st' : position % 10 === 2 ? 'nd' : position % 10 === 3 ? 'rd' : 'th'}`;
 };
+
+const bookImages = (book:Book) => book.image_urls.length ? book.image_urls : book.image_url ? [book.image_url] : [];
 
 const escapeReceiptText = (value:string) => value
   .replaceAll('&', '&amp;')
@@ -98,9 +100,32 @@ export default function Storefront({ initialBooks }: { initialBooks: Book[] }) {
   const [confirmation, setConfirmation] = useState<ClaimResult|null>(null);
   const [downloadingReceipt, setDownloadingReceipt] = useState(false);
   const [receiptError, setReceiptError] = useState('');
+  const [detailBook, setDetailBook] = useState<Book|null>(null);
+  const [detailImageIndex, setDetailImageIndex] = useState(0);
   const chosen = useMemo(() => books.filter((book) => selected.includes(book.id)), [books, selected]);
   const total = chosen.reduce((sum, book) => sum + book.price, 0);
   const available = books.filter((book) => book.status === 'available').length;
+
+  useEffect(() => {
+    if (!detailBook && !open) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event:KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (detailBook) setDetailBook(null);
+      else {
+        setConfirmation(null);
+        setError('');
+        setReceiptError('');
+        setOpen(false);
+      }
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [detailBook, open]);
 
   function openClaimPanel() {
     setConfirmation(null);
@@ -113,6 +138,16 @@ export default function Storefront({ initialBooks }: { initialBooks: Book[] }) {
     setError('');
     setReceiptError('');
     setOpen(false);
+  }
+
+  function openBook(book:Book) {
+    setDetailBook(book);
+    setDetailImageIndex(0);
+  }
+
+  function closeBook() {
+    setDetailBook(null);
+    setDetailImageIndex(0);
   }
 
   async function downloadReceipt() {
@@ -132,6 +167,15 @@ export default function Storefront({ initialBooks }: { initialBooks: Book[] }) {
     setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current,id]);
   }
 
+  function changeDetailImage(imageCount:number, direction:number) {
+    setDetailImageIndex((current) => (current + direction + imageCount) % imageCount);
+  }
+
+  function reviewClaimFromDetails() {
+    closeBook();
+    openClaimPanel();
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSending(true); setError('');
     const form = new FormData(event.currentTarget);
@@ -149,31 +193,45 @@ export default function Storefront({ initialBooks }: { initialBooks: Book[] }) {
   return <main>
     <header className="site-header">
       <a className="brand" href="#top" aria-label="The Second Chapter home"><BrandMark /><span>The Second Chapter</span></a>
-      <nav><a href="#how">How it works</a></nav>
+      <nav><a href="#how">How it works</a><a href="#collection">Latest drop</a></nav>
       <button className="bag-button" onClick={openClaimPanel}>Claim list <span>{selected.length}</span></button>
     </header>
 
     <section className="hero" id="top">
-      <p className="eyebrow">Fresh off the shelf · New drop</p>
-      <h1>Good stories deserve<br /><em>another reader.</em></h1>
-      <p className="hero-copy">Pre-loved books, carefully checked and ready for their next chapter. Join a book&apos;s miner list before it is sold.</p>
-      <a className="primary-button" href="#collection">Browse the new drop <span aria-hidden="true">↓</span></a>
-      <div className="drop-note"><span className="pulse" /> New arrivals are live</div>
+      <div className="hero-copy-block">
+        <p className="eyebrow hero-eyebrow"><span aria-hidden="true" /> Curated new &amp; pre-loved books</p>
+        <h1>A new favorite is<br /><em>waiting to be read.</em></h1>
+        <p className="hero-copy">Discover thoughtfully chosen brand-new and pre-loved books, each ready to find a place on your shelf.</p>
+        <div className="hero-actions">
+          <a className="primary-button" href="#collection">Explore the latest drop <span aria-hidden="true">↓</span></a>
+          <a className="secondary-button" href="#how">How claiming works <span aria-hidden="true">→</span></a>
+        </div>
+        <div className="hero-availability"><span className="pulse" /> <strong>{available}</strong> {available === 1 ? 'book is' : 'books are'} looking for a new home</div>
+      </div>
+
+      <div className="hero-art" aria-hidden="true">
+        <span className="hero-art-label hero-art-label-top">Read</span>
+        <div className="hero-sun" />
+        <div className="hero-orbit hero-orbit-one" />
+        <div className="hero-orbit hero-orbit-two" />
+        <div className="hero-emblem"><BrandMark /></div>
+        <div className="hero-book hero-book-one" />
+        <div className="hero-book hero-book-two" />
+        <div className="hero-book hero-book-three" />
+        <span className="hero-art-label hero-art-label-bottom">Rehome · Repeat</span>
+      </div>
     </section>
+
+    {detailBook&&(() => {const images=bookImages(detailBook);const image=images[Math.min(detailImageIndex,Math.max(images.length-1,0))];return <div className="book-detail-backdrop" onMouseDown={(event)=>event.target===event.currentTarget&&closeBook()}><section className="book-detail-modal" role="dialog" aria-modal="true" aria-labelledby="book-detail-title"><button type="button" className="book-detail-close" aria-label="Close book details" onClick={closeBook}>×</button><div className="book-detail-gallery"><div className={`book-detail-image ${detailBook.tone} ${image?'has-image':''}`} style={image?{backgroundImage:`url("${image.replaceAll('"','%22')}")`}:undefined}>{!image&&<><span>Pre-loved edition</span><strong>{detailBook.title}</strong><small>{detailBook.author}</small></>}{images.length>1&&<><button type="button" className="detail-arrow previous" aria-label="Previous book photo" onClick={()=>changeDetailImage(images.length,-1)}>‹</button><button type="button" className="detail-arrow next" aria-label="Next book photo" onClick={()=>changeDetailImage(images.length,1)}>›</button><span className="detail-image-count">{detailImageIndex+1} / {images.length}</span></>}</div>{images.length>1&&<div className="book-detail-thumbnails" aria-label="Choose a book photo">{images.map((photo,index)=><button type="button" key={photo} className={index===detailImageIndex?'active':undefined} aria-label={`View photo ${index+1}`} aria-pressed={index===detailImageIndex} style={{backgroundImage:`url("${photo.replaceAll('"','%22')}")`}} onClick={()=>setDetailImageIndex(index)}/>)}</div>}</div><div className="book-detail-copy"><p className="eyebrow">Pre-loved edition</p><h2 id="book-detail-title">{detailBook.title}</h2><p className="book-detail-author">by {detailBook.author}</p><div className="book-detail-facts"><div><span>Price</span><strong>{peso.format(detailBook.price)}</strong></div><div><span>Condition</span><strong>{detailBook.condition}</strong></div><div><span>Status</span><strong>{detailBook.status==='available'?'Open for miners':'Sold'}</strong></div></div><div className="book-detail-description"><span>Description &amp; condition notes</span><p>{detailBook.description||'No additional condition notes were provided.'}</p></div><button type="button" className={`detail-claim-button ${selected.includes(detailBook.id)?'selected':''}`} disabled={detailBook.status!=='available'} onClick={()=>toggle(detailBook.id)}>{detailBook.status==='sold'?'Sold':selected.includes(detailBook.id)?'✓ Added to claim':'Add to claim'}</button>{selected.length>0&&<button type="button" className="detail-review-button" onClick={reviewClaimFromDetails}>Review claim list · {selected.length} {selected.length===1?'book':'books'}</button>}</div></section></div>})()}
+
+    <section className="how" id="how"><p className="eyebrow">Know your place in line</p><h2>Claim in three easy steps.</h2><div className="steps"><div><span>01</span><h3>Pick your reads</h3><p>Add every book you want to one claim list.</p></div><div><span>02</span><h3>Join the miner list</h3><p>Submit your details to receive a position for each book.</p></div><div><span>03</span><h3>Message &amp; pay</h3><p>Send your claim receipt to The Second Chapter on Facebook and complete your payment within the agreed transaction period.</p></div></div><p className="payment-note"><strong>Payment-first policy</strong><span>Your claim is secured only after payment. If payment is not completed within the agreed transaction period, the seller will proceed to the next miner.</span></p></section>
 
     <section className="collection" id="collection">
       <div className="section-heading"><div><p className="eyebrow">The latest drop</p><h2>Books looking for a new home</h2></div><p>{available} {available === 1 ? 'book' : 'books'} available</p></div>
       <div className="book-grid">
-        {books.map((book) => <article className={`book-card ${book.status !== 'available' ? 'unavailable' : ''}`} key={book.id}>
-          <div className={`book-cover ${book.tone} ${book.image_url ? 'has-cover-image' : ''}`} style={book.image_url ? {backgroundImage:`url("${book.image_url.replaceAll('"','%22')}")`} : undefined}><span className="cover-kicker">Pre-loved edition</span><strong>{book.title}</strong><small>{book.author}</small>{book.status !== 'available' && <span className="status-stamp">{book.status}</span>}</div>
-          <div className="book-meta"><div><h3>{book.title}</h3><p>{book.author} · {book.condition}</p></div><strong>{peso.format(book.price)}</strong></div>
-          <p className="book-description">{book.description}</p>
-          <button type="button" disabled={book.status !== 'available'} className={selected.includes(book.id) ? 'selected' : ''} onClick={() => toggle(book.id)}>{book.status === 'sold' ? 'Sold' : selected.includes(book.id) ? '✓ Added to claim' : 'Add to claim'}</button>
-        </article>)}
+        {books.map((book) => {const image=bookImages(book)[0];return <article className={`book-card ${book.status !== 'available' ? 'unavailable' : ''}`} key={book.id}><button type="button" className={`book-cover book-cover-trigger ${book.tone} ${image?'has-cover-image':''}`} style={image?{backgroundImage:`url("${image.replaceAll('"','%22')}")`}:undefined} aria-label={`View ${book.title} details`} onClick={()=>openBook(book)}>{image?<span className="cover-preview-title">{book.title}</span>:<><span className="cover-kicker">Pre-loved edition</span><strong>{book.title}</strong><small>{book.author}</small></>}{book.status!=='available'&&<span className="status-stamp">{book.status}</span>}<span className="view-book-hint">View book</span></button></article>})}
       </div>
     </section>
-
-    <section className="how" id="how"><p className="eyebrow">Know your place in line</p><h2>Claim in three easy steps.</h2><div className="steps"><div><span>01</span><h3>Pick your reads</h3><p>Add every book you want to one claim list.</p></div><div><span>02</span><h3>Join the miner list</h3><p>Submit your details to receive a position for each book.</p></div><div><span>03</span><h3>Wait for the seller</h3><p>Save your claim code. The seller will contact miners in queue order.</p></div></div></section>
 
       <footer><div className="brand"><BrandMark /><span>The Second Chapter</span></div><p>Every book deserves another chapter.</p></footer>
 
@@ -182,8 +240,8 @@ export default function Storefront({ initialBooks }: { initialBooks: Book[] }) {
     {open && <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeClaimPanel()}>
       <section className="claim-panel" role="dialog" aria-modal="true" aria-labelledby="claim-title">
         <button className="close-button" aria-label="Close claim list" onClick={closeClaimPanel}>×</button>
-        {confirmation ? <div className="confirmation"><BrandMark /><p className="eyebrow">Claim received</p><h2 id="claim-title">You&apos;re on the miner list!</h2><p>Download your receipt and send it to The Second Chapter Facebook page. If no receipt is sent, your claim will automatically be given to the next miner.</p><div className="miner-positions">{confirmation.items.map((item) => <div key={item.book_id}><span>{item.title}</span><strong>{ordinal(item.position)} miner</strong></div>)}</div><strong>{confirmation.code}</strong><div className="confirmation-total"><span>Book subtotal · {peso.format(confirmation.total)}</span><small>Shipping fee not included</small></div><div className="shipping-rates"><span>Shipping rates</span><div><small>1 book</small><strong>₱84</strong></div><div><small>2–3 books</small><strong>₱134</strong></div><div><small>4–6 books</small><strong>₱164</strong></div></div>{receiptError && <p className="receipt-error" role="alert">{receiptError}</p>}<div className="confirmation-actions"><button type="button" className="receipt-button" disabled={downloadingReceipt} onClick={downloadReceipt}>{downloadingReceipt ? 'Preparing receipt…' : '↓ Download receipt'}</button><button type="button" className="continue-button" onClick={closeClaimPanel}>Continue browsing</button></div></div> : <>
-          <p className="eyebrow">Your claim list</p><h2 id="claim-title">Almost yours.</h2>
+        {confirmation ? <div className="confirmation"><BrandMark /><p className="eyebrow">Claim received</p><h2 id="claim-title">You&apos;re on the miner list!</h2><p>Download your receipt, send it to The Second Chapter Facebook page, and complete payment within the agreed transaction period. Unpaid claims will be offered to the next miner.</p><div className="miner-positions">{confirmation.items.map((item) => <div key={item.book_id}><span>{item.title}</span><strong>{ordinal(item.position)} miner</strong></div>)}</div><strong>{confirmation.code}</strong><div className="confirmation-total"><span>Book subtotal · {peso.format(confirmation.total)}</span><small>Shipping fee not included</small></div><div className="shipping-rates"><span>Shipping rates</span><div><small>1 book</small><strong>₱84</strong></div><div><small>2–3 books</small><strong>₱134</strong></div><div><small>4–6 books</small><strong>₱164</strong></div></div>{receiptError && <p className="receipt-error" role="alert">{receiptError}</p>}<div className="confirmation-actions"><button type="button" className="receipt-button" disabled={downloadingReceipt} onClick={downloadReceipt}>{downloadingReceipt ? 'Preparing receipt…' : '↓ Download receipt'}</button><button type="button" className="continue-button" onClick={closeClaimPanel}>Continue browsing</button></div></div> : <>
+          <p className="eyebrow">Your claim list</p><h2 id="claim-title">Almost yours.</h2><p className="claim-payment-note"><strong>Payment-first policy</strong><span>Your claim is secured only after payment. If payment is not completed within the agreed transaction period, the seller will proceed to the next miner.</span></p>
           {chosen.length ? <><div className="claim-items">{chosen.map((book) => <div key={book.id}><span><b>{book.title}</b><small>{book.author}</small></span><strong>{peso.format(book.price)}</strong><button aria-label={`Remove ${book.title}`} onClick={() => toggle(book.id)}>×</button></div>)}</div><div className="claim-total"><span>Book subtotal <small>Shipping fee not included</small></span><strong>{peso.format(total)}</strong></div><div className="shipping-rates"><span>Shipping rates</span><div><small>1 book</small><strong>₱84</strong></div><div><small>2–3 books</small><strong>₱134</strong></div><div><small>4–6 books</small><strong>₱164</strong></div></div>
           <form onSubmit={submit}><div className="form-grid"><label>Full name<input name="name" required maxLength={80} autoComplete="name" /></label><label>Mobile number<input name="phone" required maxLength={30} inputMode="tel" autoComplete="tel" /></label></div><label>Facebook profile or Messenger name<input name="facebook" required maxLength={200} placeholder="Link or exact profile name" /></label><label>Delivery method<select name="delivery" required><option value="">Choose one</option><option>Pickup</option><option>Maxim / Angkas</option><option>J&amp;T</option></select></label><label>Delivery address <small>(if applicable)</small><textarea name="address" rows={2} maxLength={300} /></label><label>Notes <small>(optional)</small><textarea name="notes" rows={2} maxLength={300} placeholder="Preferred pickup point, rider details, etc." /></label><label className="claim-disclaimer"><input name="termsAccepted" type="checkbox" required /><span>I understand that claims cannot be cancelled, I accept each book&apos;s stated condition, and no refunds or returns are allowed once an order has shipped.</span></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="submit-claim" disabled={sending}>{sending ? 'Joining the miner list…' : `Submit claim · ${peso.format(total)}`}</button><p className="fine-print">Book subtotal excludes shipping. Submitting adds you to each book&apos;s miner queue; claims stay open until the seller marks a book sold.</p></form></> : <div className="empty-claim"><p>Your claim list is empty.</p><button onClick={closeClaimPanel}>Browse books</button></div>}
         </>}

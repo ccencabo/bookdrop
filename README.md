@@ -8,7 +8,7 @@ A mobile-friendly secondhand-book storefront with atomic miner queues and a priv
 - Multi-book claim checkout and unique claim codes
 - Atomic per-book queue positions for concurrent claims
 - Seller login, inventory management, and order-status workflow
-- Optional cover image URLs
+- Up to eight Supabase Storage photos per book
 - Open Graph sharing card
 - Standard Next.js build plus Docker deployment support
 
@@ -20,6 +20,8 @@ A mobile-friendly secondhand-book storefront with atomic miner queues and a priv
 4. Copy the project URL, publishable key, and secret key from the project settings.
 
 The secret key is server-only. Never prefix it with `NEXT_PUBLIC_` or expose it in browser code.
+
+The app creates its public `book-covers` Storage bucket on the first seller upload. Each image is limited to 5 MB and must be JPG, PNG, or WebP.
 
 ## 2. Configure the app
 

@@ -8,6 +8,7 @@ export type Book = {
   tone: string;
   description: string;
   image_url: string | null;
+  image_urls: string[];
 };
 
 export type Order = {

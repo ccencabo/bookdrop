@@ -4,11 +4,14 @@ import type { Book, ClaimResult, Order } from './types';
 
 export async function listBooks(includeUnavailable = true): Promise<Book[]> {
   const supabase = createAdminClient();
-  let query = supabase.from('books').select('id,title,author,price,condition,status,tone,description,image_url').order('created_at', { ascending:false });
+  let query = supabase.from('books').select('id,title,author,price,condition,status,tone,description,image_url,image_urls').order('created_at', { ascending:false });
   if (!includeUnavailable) query = query.eq('status','available');
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as Book[];
+  return (data ?? []).map((book) => ({
+    ...book,
+    image_urls: book.image_urls?.length ? book.image_urls : book.image_url ? [book.image_url] : [],
+  })) as Book[];
 }
 
 export async function createClaim(input: { bookIds:number[]; name:string; facebook:string; phone:string; delivery:string; address:string; notes:string; }) {
@@ -45,6 +48,11 @@ export async function listOrders(): Promise<Order[]> {
 
 export async function addBook(input: Omit<Book,'id'|'status'>) {
   const { error } = await createAdminClient().from('books').insert(input);
+  if (error) throw error;
+}
+
+export async function updateBook(id:number,input:Omit<Book,'id'|'status'>) {
+  const { error } = await createAdminClient().from('books').update(input).eq('id',id);
   if (error) throw error;
 }
 
