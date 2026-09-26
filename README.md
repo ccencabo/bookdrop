@@ -1,12 +1,12 @@
-# BookDrop
+# The Second Chapter
 
-A mobile-friendly secondhand-book storefront with atomic claims and a private seller dashboard.
+A mobile-friendly secondhand-book storefront with atomic miner queues and a private seller dashboard.
 
 ## What is included
 
-- Public catalog with available, reserved, and sold states
+- Public catalog that accepts miners until the seller marks a book sold
 - Multi-book claim checkout and unique claim codes
-- Atomic database function that prevents two buyers claiming the same copy
+- Atomic per-book queue positions for concurrent claims
 - Seller login, inventory management, and order-status workflow
 - Optional cover image URLs
 - Open Graph sharing card
@@ -15,11 +15,11 @@ A mobile-friendly secondhand-book storefront with atomic claims and a private se
 ## 1. Create the Supabase project
 
 1. Create a project at [Supabase](https://supabase.com/dashboard).
-2. Open **SQL Editor** and run `supabase/migrations/20260828000000_bookdrop.sql`.
+2. Open **SQL Editor** and run every file in `supabase/migrations` in filename order.
 3. Open **Authentication → Users** and create your seller user.
-4. Copy the project URL, publishable key, and service-role key from the project settings.
+4. Copy the project URL, publishable key, and secret key from the project settings.
 
-The service-role key is server-only. Never prefix it with `NEXT_PUBLIC_` or expose it in browser code.
+The secret key is server-only. Never prefix it with `NEXT_PUBLIC_` or expose it in browser code.
 
 ## 2. Configure the app
 
@@ -28,7 +28,7 @@ Copy `.env.example` to `.env.local` and fill in:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_your_key
 ADMIN_EMAIL=the-email-you-created-in-supabase@example.com
 SITE_URL=https://books.yourdomain.com
 ```
@@ -59,4 +59,4 @@ Put Caddy, nginx, or Cloudflare in front of port 3000 and point your domain to t
 
 ## Security model
 
-Public buyers can read inventory but cannot directly alter it. Claims go through a server route and an atomic PostgreSQL function. Seller APIs verify a Supabase Auth session and require the email in `ADMIN_EMAIL`. The service-role key remains on the server.
+Public buyers can read inventory but cannot directly alter it. Claims go through a server route and an atomic PostgreSQL function. Seller APIs verify a Supabase Auth session and require the email in `ADMIN_EMAIL`. The secret key remains on the server.

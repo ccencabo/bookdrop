@@ -1,6 +1,6 @@
 import 'server-only';
 import { createAdminClient } from './supabase/admin';
-import type { Book, Order } from './types';
+import type { Book, ClaimResult, Order } from './types';
 
 export async function listBooks(includeUnavailable = true): Promise<Book[]> {
   const supabase = createAdminClient();
@@ -22,19 +22,24 @@ export async function createClaim(input: { bookIds:number[]; name:string; facebo
     p_address: input.address,
     p_notes: input.notes,
   });
-  if (error) throw new Error(error.message.includes('BOOK_UNAVAILABLE') ? 'One of those books was just claimed. Refresh and try again.' : error.message);
-  const row = (data as { claim_code:string; claim_total:number }[] | null)?.[0];
+  if (error) throw new Error(error.message.includes('BOOK_SOLD') ? 'One of those books was just marked sold. Refresh and try again.' : error.message);
+  const row = (data as { claim_code:string; claim_total:number; claim_items:ClaimResult['items'] }[] | null)?.[0];
   if (!row) throw new Error('The claim could not be created.');
-  return { code:row.claim_code, total:row.claim_total };
+  return { code:row.claim_code, total:row.claim_total, items:row.claim_items };
 }
 
 export async function listOrders(): Promise<Order[]> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase.from('orders').select('*,order_items(books(title))').order('created_at',{ascending:false});
+  const { data, error } = await supabase.from('orders').select('*,order_items(book_id,miner_position,books(title))').order('created_at',{ascending:false});
   if (error) throw error;
   return (data ?? []).map((row) => {
-    const raw = row as unknown as Omit<Order,'books'> & { order_items:{books:{title:string}|null}[] };
-    return {...raw, books:raw.order_items.map((item) => item.books?.title).filter(Boolean).join(' · ')};
+    const raw = row as unknown as Omit<Order,'items'> & { order_items:{book_id:number;miner_position:number;books:{title:string}|null}[] };
+    return {
+      ...raw,
+      items: raw.order_items
+        .filter((item) => item.books)
+        .map((item) => ({book_id:item.book_id,title:item.books!.title,miner_position:item.miner_position})),
+    };
   });
 }
 
@@ -49,12 +54,6 @@ export async function setBookStatus(id:number,status:Book['status']) {
 }
 
 export async function setOrderStatus(id:string,status:string) {
-  const supabase = createAdminClient();
-  const bookStatus = status === 'cancelled' ? 'available' : status === 'pending_payment' ? 'reserved' : 'sold';
-  const { data:items,error:itemError } = await supabase.from('order_items').select('book_id').eq('order_id',id);
-  if (itemError) throw itemError;
-  const { error:orderError } = await supabase.from('orders').update({status}).eq('id',id);
-  if (orderError) throw orderError;
-  const ids=(items??[]).map((item)=>item.book_id);
-  if (ids.length) { const {error}=await supabase.from('books').update({status:bookStatus}).in('id',ids); if(error) throw error; }
+  const { error } = await createAdminClient().from('orders').update({status}).eq('id',id);
+  if (error) throw error;
 }

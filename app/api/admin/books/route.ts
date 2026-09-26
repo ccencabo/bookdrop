@@ -13,6 +13,6 @@ export async function POST(request:Request) {
 export async function PATCH(request:Request) {
   const auth = await requireOwnerApi(); if ('error' in auth) return auth.error;
   const body = await request.json() as {id?:number;status?:Book['status']};
-  if (!Number.isInteger(body.id) || !['available','reserved','sold'].includes(String(body.status))) return Response.json({error:'Invalid update.'},{status:400});
+  if (!Number.isInteger(body.id) || !['available','sold'].includes(String(body.status))) return Response.json({error:'Invalid update.'},{status:400});
   await setBookStatus(Number(body.id),body.status!); return Response.json({ok:true});
 }

@@ -8,5 +8,5 @@ export async function POST(request:Request) {
   const supabase=await createClient();
   const {error}=await supabase.auth.signInWithPassword({email,password});
   if(error) return NextResponse.redirect(new URL(`/owner/login?error=${encodeURIComponent('Incorrect email or password.')}`,request.url),303);
-  return NextResponse.redirect(new URL('/owner',request.url),303);
+  return NextResponse.redirect(new URL('/owner/claims',request.url),303);
 }

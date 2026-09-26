@@ -4,7 +4,7 @@ export type Book = {
   author: string;
   price: number;
   condition: string;
-  status: 'available' | 'reserved' | 'sold';
+  status: 'available' | 'sold';
   tone: string;
   description: string;
   image_url: string | null;
@@ -22,5 +22,19 @@ export type Order = {
   total: number;
   status: string;
   created_at: string;
-  books: string;
+  items: {
+    book_id: number;
+    title: string;
+    miner_position: number;
+  }[];
+};
+
+export type ClaimResult = {
+  code: string;
+  total: number;
+  items: {
+    book_id: number;
+    title: string;
+    position: number;
+  }[];
 };
