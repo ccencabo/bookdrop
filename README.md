@@ -1,1 +1,62 @@
-# bookdrop
+# BookDrop
+
+A mobile-friendly secondhand-book storefront with atomic claims and a private seller dashboard.
+
+## What is included
+
+- Public catalog with available, reserved, and sold states
+- Multi-book claim checkout and unique claim codes
+- Atomic database function that prevents two buyers claiming the same copy
+- Seller login, inventory management, and order-status workflow
+- Optional cover image URLs
+- Open Graph sharing card
+- Standard Next.js build plus Docker deployment support
+
+## 1. Create the Supabase project
+
+1. Create a project at [Supabase](https://supabase.com/dashboard).
+2. Open **SQL Editor** and run `supabase/migrations/20260828000000_bookdrop.sql`.
+3. Open **Authentication → Users** and create your seller user.
+4. Copy the project URL, publishable key, and service-role key from the project settings.
+
+The service-role key is server-only. Never prefix it with `NEXT_PUBLIC_` or expose it in browser code.
+
+## 2. Configure the app
+
+Copy `.env.example` to `.env.local` and fill in:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+ADMIN_EMAIL=the-email-you-created-in-supabase@example.com
+SITE_URL=https://books.yourdomain.com
+```
+
+## 3. Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`. The seller dashboard is at `http://localhost:3000/owner`.
+
+## 4. Deploy
+
+### Vercel
+
+Import the repository, add the five environment variables above, and deploy. Add your custom domain in the project domain settings.
+
+### Docker / your own server
+
+```bash
+docker build -t bookdrop .
+docker run --env-file .env.local -p 3000:3000 bookdrop
+```
+
+Put Caddy, nginx, or Cloudflare in front of port 3000 and point your domain to the server. Use HTTPS in production.
+
+## Security model
+
+Public buyers can read inventory but cannot directly alter it. Claims go through a server route and an atomic PostgreSQL function. Seller APIs verify a Supabase Auth session and require the email in `ADMIN_EMAIL`. The service-role key remains on the server.

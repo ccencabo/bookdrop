@@ -1,4 +1,4 @@
-import { listOrders, setOrderStatus } from '../../../../db/store';
+import { listOrders, setOrderStatus } from '../../../../lib/data';
 import { requireOwnerApi } from '../../../admin-auth';
 
 export async function GET() { const auth = await requireOwnerApi(); if ('error' in auth) return auth.error; return Response.json(await listOrders()); }

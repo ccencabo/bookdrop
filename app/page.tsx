@@ -1,5 +1,5 @@
 import Storefront from './storefront';
-import { listBooks } from '../db/store';
+import { listBooks } from '../lib/data';
 
 export const dynamic = 'force-dynamic';
 

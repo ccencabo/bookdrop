@@ -1,10 +1,15 @@
-import { getChatGPTUser } from './chatgpt-auth';
-import { ownerEmail } from '../db/store';
+import { createClient } from '../lib/supabase/server';
+
+export async function getOwner() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  if (!user?.email || !adminEmail || user.email.toLowerCase() !== adminEmail) return null;
+  return user;
+}
 
 export async function requireOwnerApi() {
-  const user = await getChatGPTUser();
-  if (!user) return { error: Response.json({error:'Please sign in first.'},{status:401}) };
-  const owner = await ownerEmail();
-  if (!owner || owner !== user.email.toLowerCase()) return { error: Response.json({error:'Seller access required.'},{status:403}) };
+  const user = await getOwner();
+  if (!user) return { error: Response.json({error:'Seller access required.'},{status:401}) };
   return { user };
 }

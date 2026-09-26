@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useMemo, useState } from 'react';
-import type { Book } from '../db/store';
+import type { Book } from '../lib/types';
 
 const peso = new Intl.NumberFormat('en-PH', { style:'currency', currency:'PHP', maximumFractionDigits:0 });
 
@@ -54,7 +54,7 @@ export default function Storefront({ initialBooks }: { initialBooks: Book[] }) {
       <div className="section-heading"><div><p className="eyebrow">The latest drop</p><h2>Books looking for a new home</h2></div><p>{available} {available === 1 ? 'book' : 'books'} available</p></div>
       <div className="book-grid">
         {books.map((book) => <article className={`book-card ${book.status !== 'available' ? 'unavailable' : ''}`} key={book.id}>
-          <div className={`book-cover ${book.tone}`}><span className="cover-kicker">Pre-loved edition</span><strong>{book.title}</strong><small>{book.author}</small>{book.status !== 'available' && <span className="status-stamp">{book.status}</span>}</div>
+          <div className={`book-cover ${book.tone} ${book.image_url ? 'has-cover-image' : ''}`} style={book.image_url ? {backgroundImage:`url("${book.image_url.replaceAll('"','%22')}")`} : undefined}><span className="cover-kicker">Pre-loved edition</span><strong>{book.title}</strong><small>{book.author}</small>{book.status !== 'available' && <span className="status-stamp">{book.status}</span>}</div>
           <div className="book-meta"><div><h3>{book.title}</h3><p>{book.author} · {book.condition}</p></div><strong>{peso.format(book.price)}</strong></div>
           <p className="book-description">{book.description}</p>
           <button type="button" disabled={book.status !== 'available'} className={selected.includes(book.id) ? 'selected' : ''} onClick={() => toggle(book.id)}>{book.status !== 'available' ? 'Already claimed' : selected.includes(book.id) ? '✓ Added to claim' : 'Add to claim'}</button>

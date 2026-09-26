@@ -1,4 +1,4 @@
-import { createClaim } from '../../../db/store';
+import { createClaim } from '../../../lib/data';
 
 const clean = (value:unknown, max:number) => typeof value === 'string' ? value.trim().slice(0,max) : '';
 
