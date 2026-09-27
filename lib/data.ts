@@ -41,7 +41,8 @@ export async function createClaim(input: { bookIds:number[]; name:string; facebo
   if (error) {
     if (error.message.includes('BOOK_SOLD_OR_UNPUBLISHED')) throw new Error('One of those books is unavailable or has not been published yet. Refresh and try again.');
     if (error.message.includes('BOOK_SOLD')) throw new Error('One of those books was just marked sold. Refresh and try again.');
-    throw new Error(error.message);
+    console.error('Could not create claim', error);
+    throw new Error('Could not submit your claim. Please try again.');
   }
   const row = (data as { claim_code:string; claim_total:number; claim_items:ClaimResult['items'] }[] | null)?.[0];
   if (!row) throw new Error('The claim could not be created.');

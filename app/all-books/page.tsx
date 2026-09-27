@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { listBooks } from '../../lib/data';
 import Storefront from '../storefront';
+import { getFacebookPageUrl } from '../../lib/public-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,5 +12,5 @@ export const metadata:Metadata = {
 
 export default async function AllBooksPage() {
   const books=await listBooks();
-  return <Storefront initialBooks={books} nextPublishAt={null} view="all" />;
+  return <Storefront initialBooks={books} nextPublishAt={null} view="all" facebookPageUrl={getFacebookPageUrl()} />;
 }

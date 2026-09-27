@@ -1,9 +1,12 @@
 import { createAdminClient } from '../../../lib/supabase/admin';
+import { enforceRateLimit } from '../../../lib/rate-limit';
 import type { PublicOrderStatus } from '../../../lib/types';
 
 const codePattern=/^READ-[A-Z0-9]{7}$/;
 
 export async function POST(request:Request) {
+  const rateLimitResponse=await enforceRateLimit(request,{action:'order-status',limit:30,windowSeconds:10*60});
+  if(rateLimitResponse)return rateLimitResponse;
   const body=await request.json().catch(()=>null) as {code?:string}|null;
   const code=String(body?.code??'').trim().toUpperCase();
   if(!codePattern.test(code))return Response.json({error:'Enter a valid claim code.'},{status:400});

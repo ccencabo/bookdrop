@@ -33,8 +33,12 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_your_key
 ADMIN_EMAIL=the-email-you-created-in-supabase@example.com
+RATE_LIMIT_SECRET=a-long-random-secret-used-to-hash-rate-limit-identifiers
+FACEBOOK_PAGE_URL=https://www.facebook.com/your-page
 SITE_URL=https://books.yourdomain.com
 ```
+
+`RATE_LIMIT_SECRET` should be a unique random value of at least 32 characters. The app stores only keyed hashes of rate-limit identifiers. If you self-host behind a reverse proxy, configure it to replace (not merely append to) client IP forwarding headers.
 
 ## 3. Run locally
 
@@ -49,7 +53,7 @@ Open `http://localhost:3000`. The seller dashboard is at `http://localhost:3000/
 
 ### Vercel
 
-Import the repository, add the five environment variables above, and deploy. Add your custom domain in the project domain settings.
+Import the repository, add the seven environment variables above, and deploy. Add your custom domain in the project domain settings.
 
 ### Docker / your own server
 
@@ -63,3 +67,5 @@ Put Caddy, nginx, or Cloudflare in front of port 3000 and point your domain to t
 ## Security model
 
 Public buyers can read inventory but cannot directly alter it. Claims go through a server route and an atomic PostgreSQL function. Seller APIs verify a Supabase Auth session and require the email in `ADMIN_EMAIL`. The secret key remains on the server.
+
+Public claim creation, order tracking, and seller sign-in are protected by database-backed rate limits. Apply every migration, including `20260926000000_launch_hardening.sql`, before deploying the matching application version.

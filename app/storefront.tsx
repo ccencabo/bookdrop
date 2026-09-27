@@ -18,6 +18,7 @@ const bookImages = (book:Book) => book.image_urls.length ? book.image_urls : boo
 const editionLabel = (book:Book) => book.condition.toLowerCase() === 'brand new' ? 'Brand-new edition' : 'Pre-loved edition';
 const sellingPrice = (book:Book) => book.is_on_sale ? book.price-book.discount_amount : book.price;
 const arrivalDateLabel = new Intl.DateTimeFormat('en-US', { timeZone:'Asia/Manila', month:'long', day:'numeric' });
+const maxBooksPerClaim = 6;
 
 const escapeReceiptText = (value:string) => value
   .replaceAll('&', '&amp;')
@@ -97,7 +98,7 @@ async function createReceiptPng(result: ClaimResult) {
   }
 }
 
-export default function Storefront({ initialBooks,nextPublishAt,view='latest' }: { initialBooks:Book[];nextPublishAt:string|null;view?:'latest'|'all' }) {
+export default function Storefront({ initialBooks,nextPublishAt,view='latest',facebookPageUrl }: { initialBooks:Book[];nextPublishAt:string|null;view?:'latest'|'all';facebookPageUrl:string|null }) {
   const router=useRouter();
   const books = initialBooks;
   const isLatestView=view==='latest';
@@ -111,6 +112,7 @@ export default function Storefront({ initialBooks,nextPublishAt,view='latest' }:
   const [detailBook, setDetailBook] = useState<Book|null>(null);
   const [detailImageIndex, setDetailImageIndex] = useState(0);
   const [searchQuery,setSearchQuery] = useState('');
+  const [deliveryMethod,setDeliveryMethod] = useState('');
   const chosen = useMemo(() => books.filter((book) => selected.includes(book.id)), [books, selected]);
   const saleBooks = useMemo(() => isLatestView?[]:books.filter((book) => book.is_on_sale&&book.status==='available'), [books,isLatestView]);
   const catalogBooks = useMemo(() => {
@@ -198,6 +200,12 @@ export default function Storefront({ initialBooks,nextPublishAt,view='latest' }:
   }
 
   function toggle(id:number) {
+    if(!selected.includes(id)&&selected.length>=maxBooksPerClaim) {
+      setError(`You can include up to ${maxBooksPerClaim} books in one claim.`);
+      setOpen(true);
+      return;
+    }
+    setError('');
     setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current,id]);
   }
 
@@ -277,17 +285,17 @@ export default function Storefront({ initialBooks,nextPublishAt,view='latest' }:
       </div>
     </section>
 
-      <footer><div className="brand"><BrandMark /><span>The Second Chapter</span></div><p>Every book deserves another chapter.</p></footer>
+      <footer><div className="brand"><BrandMark /><span>The Second Chapter</span></div><nav><Link href="/privacy">Privacy</Link>{facebookPageUrl&&<a href={facebookPageUrl} target="_blank" rel="noreferrer">Facebook</a>}</nav><p>Every book deserves another chapter.</p></footer>
 
     {selected.length > 0 && <button className="mobile-claim" onClick={openClaimPanel}>Review {selected.length} {selected.length === 1 ? 'book' : 'books'} · {peso.format(total)}</button>}
 
     {open && <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeClaimPanel()}>
       <section className="claim-panel" role="dialog" aria-modal="true" aria-labelledby="claim-title">
         <button className="close-button" aria-label="Close claim list" onClick={closeClaimPanel}>×</button>
-        {confirmation ? <div className="confirmation"><BrandMark /><p className="eyebrow">Claim received</p><h2 id="claim-title">You&apos;re on the miner list!</h2><p>Download your receipt, send it to The Second Chapter Facebook page, and complete payment within the agreed transaction period. Unpaid claims will be offered to the next miner.</p><div className="miner-positions">{confirmation.items.map((item) => <div key={item.book_id}><span>{item.title}</span><strong>{ordinal(item.position)} miner</strong></div>)}</div><strong>{confirmation.code}</strong><div className="confirmation-total"><span>Book subtotal · {peso.format(confirmation.total)}</span><small>Shipping fee not included</small></div><div className="shipping-rates"><span>Shipping rates</span><div><small>1 book</small><strong>₱84</strong></div><div><small>2–3 books</small><strong>₱134</strong></div><div><small>4–6 books</small><strong>₱164</strong></div></div>{receiptError && <p className="receipt-error" role="alert">{receiptError}</p>}<div className="confirmation-actions"><button type="button" className="receipt-button" disabled={downloadingReceipt} onClick={downloadReceipt}>{downloadingReceipt ? 'Preparing receipt…' : '↓ Download receipt'}</button><button type="button" className="continue-button" onClick={closeClaimPanel}>Continue browsing</button></div></div> : <>
+        {confirmation ? <div className="confirmation"><BrandMark /><p className="eyebrow">Claim received</p><h2 id="claim-title">You&apos;re on the miner list!</h2><p>Download your receipt, send it to The Second Chapter Facebook page, and complete payment within the agreed transaction period. Unpaid claims will be offered to the next miner.</p><div className="miner-positions">{confirmation.items.map((item) => <div key={item.book_id}><span>{item.title}</span><strong>{ordinal(item.position)} miner</strong></div>)}</div><strong>{confirmation.code}</strong><div className="confirmation-total"><span>Book subtotal · {peso.format(confirmation.total)}</span><small>Shipping fee not included</small></div><div className="shipping-rates"><span>Shipping rates</span><div><small>1 book</small><strong>₱84</strong></div><div><small>2–3 books</small><strong>₱134</strong></div><div><small>4–6 books</small><strong>₱164</strong></div></div>{receiptError && <p className="receipt-error" role="alert">{receiptError}</p>}<div className="confirmation-actions"><button type="button" className="receipt-button" disabled={downloadingReceipt} onClick={downloadReceipt}>{downloadingReceipt ? 'Preparing receipt…' : '↓ Download receipt'}</button>{facebookPageUrl&&<a className="facebook-button" href={facebookPageUrl} target="_blank" rel="noreferrer">Message on Facebook ↗</a>}<button type="button" className="continue-button" onClick={closeClaimPanel}>Continue browsing</button></div></div> : <>
           <p className="eyebrow">Your claim list</p><h2 id="claim-title">Almost yours.</h2><p className="claim-payment-note"><strong>Payment-first policy</strong><span>Your claim is secured only after payment. If payment is not completed within the agreed transaction period, the seller will proceed to the next miner.</span></p>
           {chosen.length ? <><div className="claim-items">{chosen.map((book) => <div key={book.id}><span><b>{book.title}</b><small>{book.author}{book.is_on_sale?' · Sale':''}</small></span><strong>{peso.format(sellingPrice(book))}</strong><button aria-label={`Remove ${book.title}`} onClick={() => toggle(book.id)}>×</button></div>)}</div><div className="claim-total"><span>Book subtotal <small>Shipping fee not included</small></span><strong>{peso.format(total)}</strong></div><div className="shipping-rates"><span>Shipping rates</span><div><small>1 book</small><strong>₱84</strong></div><div><small>2–3 books</small><strong>₱134</strong></div><div><small>4–6 books</small><strong>₱164</strong></div></div>
-          <form onSubmit={submit}><div className="form-grid"><label>Full name<input name="name" required maxLength={80} autoComplete="name" /></label><label>Mobile number<input name="phone" required maxLength={30} inputMode="tel" autoComplete="tel" /></label></div><label>Facebook profile or Messenger name<input name="facebook" required maxLength={200} placeholder="Link or exact profile name" /></label><label>Delivery method<select name="delivery" required><option value="">Choose one</option><option>Pickup</option><option>Maxim / Angkas</option><option>J&amp;T</option></select></label><label>Delivery address <small>(if applicable)</small><textarea name="address" rows={2} maxLength={300} /></label><label>Notes <small>(optional)</small><textarea name="notes" rows={2} maxLength={300} placeholder="Preferred pickup point, rider details, etc." /></label><label className="claim-disclaimer"><input name="termsAccepted" type="checkbox" required /><span>I understand that claims cannot be cancelled, I accept each book&apos;s stated condition, and no refunds or returns are allowed once an order has shipped.</span></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="submit-claim" disabled={sending}>{sending ? 'Joining the miner list…' : `Submit claim · ${peso.format(total)}`}</button><p className="fine-print">Book subtotal excludes shipping. Submitting adds you to each book&apos;s miner queue; claims stay open until the seller marks a book sold.</p></form></> : <div className="empty-claim"><p>Your claim list is empty.</p><button onClick={closeClaimPanel}>Browse books</button></div>}
+          <form onSubmit={submit}><div className="form-grid"><label>Full name<input name="name" required maxLength={80} autoComplete="name" /></label><label>Mobile number<input name="phone" required maxLength={30} minLength={10} inputMode="tel" autoComplete="tel" pattern="[0-9+() -]{10,30}" title="Enter a valid mobile number" /></label></div><label>Facebook profile or Messenger name<input name="facebook" required maxLength={200} placeholder="Link or exact profile name" /></label><label>Delivery method<select name="delivery" required value={deliveryMethod} onChange={(event)=>setDeliveryMethod(event.target.value)}><option value="">Choose one</option><option>Pickup</option><option>Maxim / Angkas</option><option>J&amp;T</option></select></label><label>Delivery address <small>({deliveryMethod&&deliveryMethod!=='Pickup'?'required for delivery':'not needed for pickup'})</small><textarea name="address" rows={2} maxLength={300} required={Boolean(deliveryMethod&&deliveryMethod!=='Pickup')} autoComplete="street-address" /></label><label>Notes <small>(optional)</small><textarea name="notes" rows={2} maxLength={300} placeholder="Preferred pickup point, rider details, etc." /></label><label className="claim-disclaimer"><input name="termsAccepted" type="checkbox" required /><span>I understand that buyer-submitted claims are final, I accept each book&apos;s stated condition, and no refunds or returns are allowed once an order has shipped. I have read the <Link href="/privacy" target="_blank">privacy notice</Link>.</span></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="submit-claim" disabled={sending}>{sending ? 'Joining the miner list…' : `Submit claim · ${peso.format(total)}`}</button><p className="fine-print">Book subtotal excludes shipping. Maximum {maxBooksPerClaim} books per claim. Submitting adds you to each book&apos;s miner queue; claims stay open until the seller marks a book sold.</p></form></> : <div className="empty-claim"><p>Your claim list is empty.</p><button onClick={closeClaimPanel}>Browse books</button></div>}
         </>}
       </section>
     </div>}

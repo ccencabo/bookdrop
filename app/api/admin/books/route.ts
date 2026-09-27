@@ -45,7 +45,7 @@ export async function GET() { const auth = await requireOwnerApi(); if ('error' 
 export async function POST(request:Request) {
   const auth = await requireOwnerApi(); if ('error' in auth) return auth.error;
   const body = await request.json() as Partial<Book> & {image_paths?:string[]};
-  if (!body.title?.trim() || !body.author?.trim() || !Number.isFinite(Number(body.price))) return Response.json({error:'Title, author, and price are required.'},{status:400});
+  if (!body.title?.trim() || !body.author?.trim() || !Number.isInteger(Number(body.price)) || Number(body.price)<1) return Response.json({error:'Title, author, and a positive whole-peso price are required.'},{status:400});
   const price=Number(body.price);
   const sale=parseSale(body.is_on_sale,body.discount_amount,price);
   if('error' in sale)return Response.json({error:sale.error},{status:400});
@@ -86,7 +86,7 @@ export async function PATCH(request:Request) {
     return Response.json({ok:true});
   }
 
-  if(!body.title?.trim()||!body.author?.trim()||!Number.isFinite(Number(body.price)))return Response.json({error:'Title, author, and price are required.'},{status:400});
+  if(!body.title?.trim()||!body.author?.trim()||!Number.isInteger(Number(body.price))||Number(body.price)<1)return Response.json({error:'Title, author, and a positive whole-peso price are required.'},{status:400});
   const price=Number(body.price);
   const sale=parseSale(body.is_on_sale,body.discount_amount,price);
   if('error' in sale)return Response.json({error:sale.error},{status:400});
