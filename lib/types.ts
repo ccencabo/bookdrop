@@ -24,6 +24,7 @@ export type Order = {
   address: string;
   notes: string;
   total: number;
+  shipping_fee: number;
   status: string;
   tracking_number: string | null;
   status_updated_at: string;
@@ -32,6 +33,7 @@ export type Order = {
     book_id: number | null;
     title: string;
     miner_position: number;
+    price: number;
   }[];
 };
 

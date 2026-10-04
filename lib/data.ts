@@ -51,14 +51,14 @@ export async function createClaim(input: { bookIds:number[]; name:string; facebo
 
 export async function listOrders(): Promise<Order[]> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase.from('orders').select('*,order_items(book_id,book_title,miner_position,books(title))').order('created_at',{ascending:false});
+  const { data, error } = await supabase.from('orders').select('*,order_items(book_id,book_title,miner_position,price,books(title))').order('created_at',{ascending:false});
   if (error) throw error;
   return (data ?? []).map((row) => {
-    const raw = row as unknown as Omit<Order,'items'> & { order_items:{book_id:number|null;book_title:string;miner_position:number;books:{title:string}|null}[] };
+    const raw = row as unknown as Omit<Order,'items'> & { order_items:{book_id:number|null;book_title:string;miner_position:number;price:number;books:{title:string}|null}[] };
     return {
       ...raw,
       items: raw.order_items
-        .map((item) => ({book_id:item.book_id,title:item.books?.title??item.book_title,miner_position:item.miner_position})),
+        .map((item) => ({book_id:item.book_id,title:item.books?.title??item.book_title,miner_position:item.miner_position,price:item.price})),
     };
   });
 }
@@ -92,9 +92,14 @@ export async function setBookStatuses(ids:number[],status:Book['status']) {
   if (error) throw error;
 }
 
-export async function setOrderStatus(id:string,status:string,trackingNumber?:string) {
-  const update:Record<string,string>={status,status_updated_at:new Date().toISOString()};
-  if(trackingNumber!==undefined)update.tracking_number=trackingNumber;
+export async function updateOrder(id:string,input:{status?:string;trackingNumber?:string;shippingFee?:number}) {
+  const update:Record<string,string|number>={};
+  if(input.status!==undefined) {
+    update.status=input.status;
+    update.status_updated_at=new Date().toISOString();
+  }
+  if(input.trackingNumber!==undefined)update.tracking_number=input.trackingNumber;
+  if(input.shippingFee!==undefined)update.shipping_fee=input.shippingFee;
   const { error } = await createAdminClient().from('orders').update(update).eq('id',id);
   if (error) throw error;
 }
