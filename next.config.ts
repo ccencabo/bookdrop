@@ -1,9 +1,10 @@
 import type { NextConfig } from 'next';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
+const isVinextBuild = process.env.VINEXT_BUILD === '1';
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  output: isVinextBuild ? undefined : 'standalone',
   devIndicators: false,
   poweredByHeader: false,
   async headers() {

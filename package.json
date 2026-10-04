@@ -9,25 +9,39 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ignore-pattern .next",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint . --ignore-pattern .next --ignore-pattern .cloudflare",
+    "typecheck": "next typegen && tsc --noEmit",
+    "dev:vinext": "vite dev --port 3001",
+    "build:vinext": "vite build",
+    "start:vinext": "vite preview",
+    "deploy:vinext": "vinext-cloudflare deploy",
+    "deploy:cloudflare": "npm run build:vinext && cf deploy --prebuilt --secrets-file .env.local"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.4",
+    "@vinext/cloudflare": "^1.0.1",
     "next": "16.3.6",
-    "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-server-dom-webpack": "19.2.8",
+    "vinext": "^1.0.1"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^2.0.0-beta.sha-52b0dc0e9",
     "@tailwindcss/postcss": "4.2.1",
+    "@tailwindcss/vite": "^4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-rsc": "^0.5.35",
+    "cf": "^1.0.0-beta.12",
     "eslint": "9.39.4",
     "eslint-config-next": "16.3.6",
     "tailwindcss": "4.2.1",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vite": "^8.3.0"
   },
   "type": "module"
 }

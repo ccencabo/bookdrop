@@ -3,6 +3,7 @@ import { createClient } from '../../../lib/supabase/server';
 import { enforceRateLimit } from '../../../lib/rate-limit';
 
 export async function POST(request:Request) {
+  const baseUrl=process.env.SITE_URL?.trim()||request.url;
   const ipRateLimit=await enforceRateLimit(request,{action:'owner-login-ip',limit:12,windowSeconds:15*60});
   if(ipRateLimit)return ipRateLimit;
   const form=await request.formData();
@@ -12,6 +13,6 @@ export async function POST(request:Request) {
   if(accountRateLimit)return accountRateLimit;
   const supabase=await createClient();
   const {error}=await supabase.auth.signInWithPassword({email,password});
-  if(error) return NextResponse.redirect(new URL(`/owner/login?error=${encodeURIComponent('Incorrect email or password.')}`,request.url),303);
-  return NextResponse.redirect(new URL('/owner/claims',request.url),303);
+  if(error) return NextResponse.redirect(new URL(`/owner/login?error=${encodeURIComponent('Incorrect email or password.')}`,baseUrl),303);
+  return NextResponse.redirect(new URL('/owner/claims',baseUrl),303);
 }

@@ -11,7 +11,7 @@ A mobile-friendly secondhand-book storefront with atomic miner queues and a priv
 - Seller login, inventory management, and order-status workflow
 - Up to eight Supabase Storage photos per book
 - Open Graph sharing card
-- Standard Next.js build plus Docker deployment support
+- Standard Next.js/Docker builds plus Cloudflare Workers deployment support
 
 ## 1. Create the Supabase project
 
@@ -40,6 +40,8 @@ SITE_URL=https://books.yourdomain.com
 
 `RATE_LIMIT_SECRET` should be a unique random value of at least 32 characters. The app stores only keyed hashes of rate-limit identifiers. If you self-host behind a reverse proxy, configure it to replace (not merely append to) client IP forwarding headers.
 
+`FACEBOOK_PAGE_URL` is optional; omit it when the store does not have a Facebook page. The other six values are required in production.
+
 ## 3. Run locally
 
 ```bash
@@ -50,6 +52,41 @@ npm run dev
 Open `http://localhost:3000`. The seller dashboard is at `http://localhost:3000/owner`.
 
 ## 4. Deploy
+
+### Cloudflare Workers (recommended for this project)
+
+This deploys the application itself to Cloudflare Workers. Cloudflare also provides the DNS, HTTPS certificate, and edge network, while Supabase remains the database, authentication, and file-storage provider. Docker Desktop and an AWS account are not needed for this path.
+
+The repository is already configured for Cloudflare's vinext adapter. Before deploying, make sure `.env.local` exists and contains the six required production values from section 2, plus the optional Facebook URL if applicable. `SITE_URL` must be the final public URL (for example, `https://books.yourdomain.com`), not a Supabase URL.
+
+Authenticate once in a terminal:
+
+```bash
+npx cf auth login
+```
+
+Then build and deploy:
+
+```bash
+npm run deploy:cloudflare
+```
+
+The command builds the Worker and securely uploads the values from the ignored `.env.local` file as encrypted Worker secrets. It does not commit that file. Use the same command after changing an environment value so Cloudflare receives the updated value.
+
+After the first deployment:
+
+1. In **Cloudflare Dashboard -> Workers & Pages -> bookdrop -> Settings -> Domains & Routes**, add your custom domain. Cloudflare creates the appropriate DNS route and manages HTTPS when the domain is in your Cloudflare zone.
+2. In **Supabase Dashboard -> Authentication -> URL Configuration**, set **Site URL** to the same `SITE_URL`. Add the same origin to **Redirect URLs** (for example, `https://books.yourdomain.com/**`).
+3. If the first deployment used the temporary `workers.dev` URL, replace `SITE_URL` in `.env.local` with the custom HTTPS URL and run `npm run deploy:cloudflare` again.
+4. Test the public catalog, seller login/logout, image upload, checkout/claim, and order lookup on the production domain.
+
+To generate `RATE_LIMIT_SECRET` in a terminal, use:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Keep the generated value private. `NEXT_PUBLIC_SUPABASE_URL` comes from **Supabase Dashboard -> Project Settings -> API**, not from Cloudflare.
 
 ### Vercel
 

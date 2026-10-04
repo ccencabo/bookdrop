@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import type { Book, ClaimResult } from '../lib/types';
 import { bookDropDateKey } from '../lib/book-drops';
 import BrandMark from './brand-mark';
+import FacebookIcon from './facebook-icon';
 
 const peso = new Intl.NumberFormat('en-PH', { style:'currency', currency:'PHP', maximumFractionDigits:0 });
 const ordinal = (position:number) => {
@@ -286,7 +287,7 @@ export default function Storefront({ initialBooks,nextPublishAt,view='latest',fa
       </div>
     </section>
 
-      <footer><div className="brand"><BrandMark /><span>The Second Chapter</span></div>{facebookPageUrl&&<nav><a href={facebookPageUrl} target="_blank" rel="noreferrer">Facebook</a></nav>}<p>Every book deserves another chapter.</p><div className="footer-legal"><Link href="/privacy">Privacy notice</Link></div></footer>
+      <footer><div className="brand"><BrandMark /><span>The Second Chapter</span></div><p>Every book deserves another chapter.</p><div className="footer-legal"><Link href="/privacy">Privacy notice</Link>{facebookPageUrl&&<a className="footer-social" href={facebookPageUrl} target="_blank" rel="noreferrer" aria-label="The Second Chapter on Facebook"><FacebookIcon/></a>}</div></footer>
 
     {selected.length > 0 && <button className="mobile-claim" onClick={openClaimPanel}>Review {selected.length} {selected.length === 1 ? 'book' : 'books'} · {peso.format(total)}</button>}
 

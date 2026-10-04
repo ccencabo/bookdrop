@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import BrandMark from '../brand-mark';
+import FacebookIcon from '../facebook-icon';
 import { getFacebookPageUrl } from '../../lib/public-config';
 
 export const metadata:Metadata={
@@ -21,6 +22,6 @@ export default function PrivacyPage() {
       <section><h2>Your choices</h2><p>You may ask to review, correct, or delete your information, subject to records we must retain for legal or legitimate business reasons.</p>{facebookPageUrl?<a className="privacy-contact" href={facebookPageUrl} target="_blank" rel="noreferrer">Contact The Second Chapter on Facebook ↗</a>:<p>Contact The Second Chapter through the same Facebook or Messenger account used to arrange your order.</p>}</section>
       <Link className="secondary-button" href="/">Back to the bookstore <span aria-hidden="true">→</span></Link>
     </article>
-    <footer><div className="brand"><BrandMark/><span>The Second Chapter</span></div><nav><Link href="/">Latest drop</Link></nav><p>Every book deserves another chapter.</p><div className="footer-legal"><Link href="/privacy" aria-current="page">Privacy notice</Link></div></footer>
+    <footer><div className="brand"><BrandMark/><span>The Second Chapter</span></div><nav><Link href="/">Latest drop</Link></nav><p>Every book deserves another chapter.</p><div className="footer-legal"><Link href="/privacy" aria-current="page">Privacy notice</Link>{facebookPageUrl&&<a className="footer-social" href={facebookPageUrl} target="_blank" rel="noreferrer" aria-label="The Second Chapter on Facebook"><FacebookIcon/></a>}</div></footer>
   </main>;
 }
